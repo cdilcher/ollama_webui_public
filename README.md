@@ -71,9 +71,7 @@ After that reboot the server
 reboot
 ```
 
-### Optional: Using custom URL address for ChromaDB
-
-> Skip this step if you are using default `api.chroma.embeddings.sx` endpoint for this service
+### Using custom URL address for ChromaDB
 
 To use custom endpoint an `nginx` config file should be modified. Open `proxy_443.conf` file with your favorite text editor:
 
