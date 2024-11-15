@@ -1,0 +1,75 @@
+services:
+  ollama:
+    image: "ollama/ollama:latest"
+    container_name: "ollama"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: "always"
+    environment:
+      OLLAMA_HOST: "0.0.0.0"
+    volumes:
+      - ./ollama/.ollama:/root/.ollama
+      - ./ollama/models:/usr/share/ollama/.ollama/models
+    networks:
+      - nifi-infra-server-network
+
+  open_webui:
+    image: "ghcr.io/open-webui/open-webui:latest"
+    container_name: "open_webui"
+    restart: "always"
+    environment:
+      WEBUI_NAME: "Open WebUI"
+      OLLAMA_BASE_URL: "http://ollama:11434"
+      OLLAMA_API_BASE_URL: "http://ollama:11434/api"
+    volumes:
+      - "./open-webui:/app/backend/data"
+    depends_on:
+      - ollama
+    external_links:
+      - ollama:ollama
+    networks:
+      - nifi-infra-server-network
+
+  auth_server:
+    build:
+      context: ./auth/
+      dockerfile: Dockerfile
+    container_name: "auth_server"
+    restart: "always"
+    volumes:
+      - "./open-webui:/app/db"
+    depends_on:
+      - open_webui
+    networks:
+      - nifi-infra-server-network
+
+  nginx_proxy:
+    image: "jonasal/nginx-certbot:5.4.0"
+    container_name: "nginx_proxy"
+    restart: "always"
+    environment:
+      CERTBOT_EMAIL: "ollama@example.com"
+    volumes:
+      - ./nginx/nginx_secrets:/etc/letsencrypt
+      - ./nginx/user_conf.d:/etc/nginx/user_conf.d
+    depends_on:
+      - ollama
+      - open_webui
+      - auth_server
+    ports:
+      - "80:80"
+      - "443:443"
+    external_links:
+      - ollama
+      - open_webui
+      - auth_server
+    networks:
+      - nifi-infra-server-network
+
+networks:
+  nifi-infra-server-network:
